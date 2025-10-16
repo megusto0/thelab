@@ -12,6 +12,33 @@ from flask import Flask, jsonify, request, send_from_directory
 app = Flask(__name__)
 
 
+LATIN_ALPHABET_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+LATIN_ALPHABET_LOWER = LATIN_ALPHABET_UPPER.lower()
+CYRILLIC_ALPHABET_UPPER = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+CYRILLIC_ALPHABET_LOWER = CYRILLIC_ALPHABET_UPPER.lower()
+
+_ALPHABETS = [
+    LATIN_ALPHABET_UPPER,
+    LATIN_ALPHABET_LOWER,
+    CYRILLIC_ALPHABET_UPPER,
+    CYRILLIC_ALPHABET_LOWER,
+]
+
+_CHAR_TO_ALPHABET: Dict[str, Tuple[str, int]] = {
+    char: (alphabet, idx)
+    for alphabet in _ALPHABETS
+    for idx, char in enumerate(alphabet)
+}
+
+_SHIFT_MAP: Dict[str, int] = {}
+for uppercase, lowercase in [
+    (LATIN_ALPHABET_UPPER, LATIN_ALPHABET_LOWER),
+    (CYRILLIC_ALPHABET_UPPER, CYRILLIC_ALPHABET_LOWER),
+]:
+    for idx, (u_char, l_char) in enumerate(zip(uppercase, lowercase)):
+        _SHIFT_MAP[u_char] = idx
+        _SHIFT_MAP[l_char] = idx
+
 # ----------------------------
 # Compression (Huffman Coding)
 # ----------------------------
@@ -226,43 +253,42 @@ def _hamming_process(message: str) -> Dict[str, object]:
 
 
 def _shift_char(char: str, shift: int) -> str:
-    if "A" <= char <= "Z":
-        base = ord("A")
-        return chr((ord(char) - base + shift) % 26 + base)
-    if "a" <= char <= "z":
-        base = ord("a")
-        return chr((ord(char) - base + shift) % 26 + base)
-    return char
+    mapping = _CHAR_TO_ALPHABET.get(char)
+    if mapping is None:
+        return char
+    alphabet, idx = mapping
+    new_index = (idx + shift) % len(alphabet)
+    return alphabet[new_index]
 
 
 def _vigenere_encrypt(message: str, key: str) -> str:
-    encrypted_chars: List[str] = []
-    key_shifts = [ord(c.upper()) - ord("A") for c in key]
-    key_index = 0
-
-    for char in message:
-        if char.isalpha():
-            shift = key_shifts[key_index % len(key_shifts)]
-            encrypted_chars.append(_shift_char(char, shift))
-            key_index += 1
-        else:
-            encrypted_chars.append(char)
-    return "".join(encrypted_chars)
+    return _vigenere_transform(message, key)
 
 
 def _vigenere_decrypt(ciphertext: str, key: str) -> str:
-    decrypted_chars: List[str] = []
-    key_shifts = [ord(c.upper()) - ord("A") for c in key]
+    return _vigenere_transform(ciphertext, key, decrypt=True)
+
+
+def _vigenere_transform(message: str, key: str, *, decrypt: bool = False) -> str:
+    key_shifts = [_SHIFT_MAP[char] for char in key if char in _SHIFT_MAP]
+    if not key_shifts:
+        return message
+
+    transformed_chars: List[str] = []
     key_index = 0
 
-    for char in ciphertext:
-        if char.isalpha():
-            shift = key_shifts[key_index % len(key_shifts)]
-            decrypted_chars.append(_shift_char(char, -shift))
-            key_index += 1
-        else:
-            decrypted_chars.append(char)
-    return "".join(decrypted_chars)
+    for char in message:
+        if char not in _CHAR_TO_ALPHABET:
+            transformed_chars.append(char)
+            continue
+
+        shift = key_shifts[key_index % len(key_shifts)]
+        if decrypt:
+            shift = -shift
+        transformed_chars.append(_shift_char(char, shift))
+        key_index += 1
+
+    return "".join(transformed_chars)
 
 
 def _vigenere_process(message: str) -> Dict[str, object]:
