@@ -170,8 +170,9 @@
           </div>
         </div>
         <p class="note">
-          Убедитесь, что Flask-сервер запущен и замените адрес сервера на ваш IP в коде
-          ниже перед использованием на мобильном устройстве.
+          Убедитесь, что Flask-сервер запущен и доступен по адресу
+          <code>http://&lt;ваш_сервер&gt;:5000/</code>. Откройте эту страницу через Flask, чтобы
+          запросы выполнялись автоматически.
         </p>
         <button id="sendBtn" type="button">Отправить на сервер</button>
       </section>
@@ -184,7 +185,7 @@
     </main>
 
     <script>
-      const SERVER_URL = "http://<YOUR_LAPTOP_IP>:5000/process";
+      const SERVER_URL = "/process";
 
       const messageField = document.getElementById("message");
       const sendButton = document.getElementById("sendBtn");

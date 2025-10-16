@@ -6,7 +6,7 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 
 app = Flask(__name__)
@@ -314,6 +314,12 @@ def process():
         response = _vigenere_process(message)
 
     return jsonify(response)
+
+
+@app.route("/", methods=["GET"])
+def index():
+    # Serve the bundled frontend so the app can be accessed via the Flask server.
+    return send_from_directory(app.root_path, "index.html")
 
 
 def main() -> None:
