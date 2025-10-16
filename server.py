@@ -3,7 +3,7 @@ from __future__ import annotations
 import heapq
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -20,9 +20,9 @@ app = Flask(__name__)
 @dataclass(order=True)
 class _HuffmanNode:
     frequency: int
-    character: Optional[str] = None
-    left: Optional["_HuffmanNode"] = None
-    right: Optional["_HuffmanNode"] = None
+    character: Optional[str] = field(default=None, compare=False)
+    left: Optional["_HuffmanNode"] = field(default=None, compare=False)
+    right: Optional["_HuffmanNode"] = field(default=None, compare=False)
 
 
 def _build_huffman_tree(frequencies: Dict[str, int]) -> Optional[_HuffmanNode]:
@@ -34,12 +34,6 @@ def _build_huffman_tree(frequencies: Dict[str, int]) -> Optional[_HuffmanNode]:
         _HuffmanNode(freq, char) for char, freq in frequencies.items()
     ]
     heapq.heapify(heap)
-
-    if len(heap) == 1:
-        # Duplicate the sole node to avoid empty codes.
-        only_node = heapq.heappop(heap)
-        duplicate = _HuffmanNode(only_node.frequency, None, only_node, None)
-        heapq.heappush(heap, _HuffmanNode(only_node.frequency, None, only_node, duplicate))
 
     while len(heap) > 1:
         left = heapq.heappop(heap)
