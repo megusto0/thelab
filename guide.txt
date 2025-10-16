@@ -1,0 +1,134 @@
+Role: You are an expert full-stack developer specializing in Python for the backend and simple, effective HTML/JavaScript for the frontend. Your task is to create a client-server application for a university project based on the provided requirements.
+
+Project Overview:
+Create a web-based client-server application that demonstrates three data processing techniques: Compression, Error Correction, and Encryption. The application will consist of a Python Flask server (backend) and an HTML/JavaScript single-page web app (frontend) that will act as the client. The client will be accessible from a mobile phone's browser on the same local network as the server. The primary goal is demonstration and clarity, so the server's response must be detailed and illustrative.
+
+---
+
+### Part 1: Backend - Python Server using Flask
+
+Create a Python script named `server.py`. This server must:
+1.  Use the **Flask** framework.
+2.  Listen on all network interfaces (`0.0.0.0`) on a specific port (e.g., 5000) so it's accessible over the local network.
+3.  Implement a single API endpoint: `POST /process`.
+4.  This endpoint will accept a JSON object with two keys:
+    * `message`: A string containing the text to be processed.
+    * `mode`: A string indicating the processing mode. Possible values: `"compress"`, `"hamming"`, `"encrypt"`.
+5.  Based on the `mode`, the server will perform the corresponding operation and return a detailed JSON response.
+
+**Detailed implementation for each mode:**
+
+#### 1. Mode: `"compress"`
+   - **Algorithm:** Implement the **Huffman coding** algorithm (as it's slightly more optimal and a standard example).
+   - **Logic:**
+     1.  Take the input `message`.
+     2.  Calculate the frequency of each character in the message.
+     3.  Build the Huffman tree and generate the prefix-free codes (the code table).
+     4.  Encode the original message into a binary string.
+     5.  Calculate the original size (in bits, assuming UTF-8, 8 bits/char) and the compressed size (length of the binary string).
+     6.  Calculate the compression ratio.
+   - **JSON Response Format for `"compress"`:**
+     ```json
+     {
+       "mode": "Compression (Huffman)",
+       "original_message": "your original text",
+       "analysis": {
+         "char_frequencies": {"a": 3, "b": 5, ...},
+         "huffman_codes": {"a": "01", "b": "110", ...}
+       },
+       "processed_data": {
+         "encoded_message": "01110..."
+       },
+       "statistics": {
+         "original_size_bits": 128,
+         "compressed_size_bits": 75,
+         "ratio": "58.59%"
+       }
+     }
+     ```
+
+#### 2. Mode: `"hamming"`
+   - **Algorithm:** Implement the **Hamming(7,4) code** for error detection and correction.
+   - **Logic:**
+     1.  Take the input `message`.
+     2.  Convert the message to a sequence of bits (e.g., each character to its 8-bit ASCII/UTF-8 representation).
+     3.  Process the bit stream in 4-bit chunks (nibbles).
+     4.  For each 4-bit chunk, calculate the 3 parity bits to create a 7-bit Hamming code.
+     5.  **Crucial for demonstration:** After encoding, randomly select *one* of the 7-bit blocks and flip a single bit to simulate a transmission error.
+     6.  Implement the Hamming code decoding and correction logic. On the server side, log which bit was flipped and how it was corrected.
+   - **JSON Response Format for `"hamming"`:**
+     ```json
+     {
+       "mode": "Error Correction (Hamming)",
+       "original_message": "your text",
+       "original_bits": "0100100001100101...",
+       "processed_data": {
+         "encoded_hamming_stream": "100010011011001...",
+         "stream_with_error": "100010011011101..."
+       },
+       "demonstration_log": {
+         "error_simulation": "Flipped bit at position 15 from 0 to 1.",
+         "detection_and_correction": "Received block 1101101. Syndrome is 101 (binary for 5). Error detected at bit 5. Corrected block to 1101001. Original data was 0100."
+       }
+     }
+     ```
+
+#### 3. Mode: `"encrypt"`
+   - **Algorithm:** Implement the **Vigenère cipher**. It's a classic and good for demonstration purposes.
+   - **Logic:**
+     1.  Take the input `message`.
+     2.  Use a predefined, hardcoded keyword (e.g., `"KALASHNIKOV"`).
+     3.  Apply the Vigenère cipher algorithm to encrypt the message.
+     4.  Implement the decryption logic as well to show it's reversible.
+   - **JSON Response Format for `"encrypt"`:**
+     ```json
+     {
+       "mode": "Encryption (Vigenère Cipher)",
+       "original_message": "your secret message",
+       "processed_data": {
+         "encrypted_message": "ZPVT GJOFSB NFTTBHF"
+       },
+       "details": {
+         "key": "KALASHNIKOV",
+         "note": "This can be decrypted using the same key."
+       }
+     }
+     ```
+
+---
+
+### Part 2: Frontend - Client Web Page
+
+Create a single `index.html` file. This file should contain HTML, CSS, and JavaScript.
+1.  **HTML Structure:**
+    * A main title: "Лабораторные работы по СПИВТ".
+    * A `<textarea>` for the user to input their text message.
+    * A section with radio buttons or a dropdown (`<select>`) to choose the `mode`:
+        * Сжатие (Huffman)
+        * Помехоустойчивость (Hamming)
+        * Шифрование (Vigenère)
+    * A `<button>` with the text "Отправить на сервер".
+    * A visually distinct area to display the results from the server, with a title like "Результат обработки на сервере". This area should be pre-formatted with sub-sections to neatly display the JSON response.
+
+2.  **CSS Styling:**
+    * Use simple, clean styling. Make the layout responsive for mobile viewing.
+    * Use a `monospace` font for displaying code, binary strings, and results to ensure proper alignment.
+    * Clearly separate the input and output sections.
+
+3.  **JavaScript Logic:**
+    * Add an event listener to the "Отправить" button.
+    * When clicked, get the text from the `<textarea>` and the selected `mode` from the radio buttons/dropdown.
+    * Use the `fetch()` API to send a `POST` request to your Flask server's `/process` endpoint.
+        * **Important:** The URL in the `fetch` call should be `http://<YOUR_LAPTOP_IP>:5000/process`. You will need to manually find and insert your laptop's local IP address.
+    * The request body should be the JSON object `{"message": messageText, "mode": selectedMode}`.
+    * Use `.then()` to handle the server's response. Parse the response JSON.
+    * Dynamically populate the results area on the webpage with the data received from the server. Use `JSON.stringify(data, null, 2)` inside a `<pre>` tag for a quick and readable display of the structured response.
+
+**Example interaction flow:**
+1.  User opens `index.html` on their phone.
+2.  Enters "test message" into the textarea.
+3.  Selects "Сжатие (Huffman)".
+4.  Clicks "Отправить на сервер".
+5.  JavaScript sends `{"message": "test message", "mode": "compress"}` to `http://192.168.1.5:5000/process`.
+6.  The Python server processes it and returns the detailed JSON for compression.
+7.  JavaScript receives the JSON and updates the results area on the page to show the original message, the Huffman codes, the encoded string, and the compression statistics, making the entire process transparent and **наглядным**.
