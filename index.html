@@ -152,6 +152,10 @@
             placeholder="Например: тестовое сообщение для демонстрации алгоритмов..."
           ></textarea>
         </div>
+        <div class="form-group" id="key-group" style="display: none">
+          <label for="key">Ключ (Vigenère)</label>
+          <input id="key" type="text" placeholder="Например: KALASHNIKOV" />
+        </div>
         <div class="form-group">
           <label>Выберите режим обработки</label>
           <div class="modes" role="radiogroup">
@@ -191,6 +195,8 @@
       const sendButton = document.getElementById("sendBtn");
       const statusField = document.getElementById("status");
       const resultField = document.getElementById("result");
+      const keyGroup = document.getElementById("key-group");
+      const keyField = document.getElementById("key");
 
       function getSelectedMode() {
         const selected = document.querySelector('input[name="mode"]:checked');
@@ -204,8 +210,19 @@
           : "Ответ сервера появится здесь после отправки.";
       }
 
+      function updateKeyVisibility() {
+        const mode = getSelectedMode();
+        keyGroup.style.display = mode === "encrypt" ? "" : "none";
+      }
+
+      document.querySelectorAll('input[name="mode"]').forEach((radio) => {
+        radio.addEventListener("change", updateKeyVisibility);
+      });
+      updateKeyVisibility();
+
       async function sendToServer() {
-        const message = messageField.value.trim();
+        const rawMessage = messageField.value;
+        const message = rawMessage.trim();
         const mode = getSelectedMode();
 
         if (!message) {
@@ -216,10 +233,15 @@
 
         try {
           setLoadingState(true);
+          const payload = { message: rawMessage, mode };
+          if (mode === "encrypt") {
+            const keyValue = keyField.value.trim();
+            payload.key = keyValue || "KALASHNIKOV";
+          }
           const response = await fetch(SERVER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message, mode }),
+            body: JSON.stringify(payload),
           });
 
           const data = await response.json();

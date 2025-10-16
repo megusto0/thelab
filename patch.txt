@@ -1,0 +1,210 @@
+
+CODEx PROMPT — Implement Enhancements for the Client–Server Labs (Huffman, Hamming, Vigenère)
+
+Role:
+You are an expert full‑stack developer. Update the existing project to add required features that align with a university methodology: efficiency calculations for Huffman, round‑trip decode checks, richer Hamming outputs (decoded text after correction), and a configurable Vigenère key via the client UI.
+
+Repository assumptions:
+- server.py — Flask server exposing POST /process and GET / that serves index.html
+- index.html — frontend with textarea “message”, radio: compress/hamming/encrypt, and “send” button
+
+Overall goals:
+1) Compression (Huffman): compute entropy H, average code length L, efficiency H/L; add reverse decoding and round‑trip validation in server response.
+2) Error correction (Hamming 7,4): in addition to syndrome logs, output the decoded bitstream and decoded UTF‑8 text after correction.
+3) Encryption (Vigenère): allow the client to specify the key; wire it through index.html → POST /process → _vigenere_process.
+
+Acceptance criteria (server JSON):
+- Huffman → under "statistics": original_size_bits, compressed_size_bits, ratio, avg_code_length_L, entropy_H_bits, coding_efficiency_H_over_L. Under "roundtrip_check": decoded_message, valid.
+- Hamming → under "processed_data": encoded_hamming_stream, stream_with_error, decoded_bitstream_after_correction, decoded_text_after_correction; plus existing logs.
+- Vigenère → POST can include "key"; server uses it and echoes it back in "details.key".
+
+──────────────────────────────────────────────────────────────────────────────
+CHANGES IN server.py
+──────────────────────────────────────────────────────────────────────────────
+
+1) HUFFMAN: add entropy/average length/efficiency + reverse decoding
+
+Locate function: def _huffman_compress(message: str) -> Dict[str, object]
+
+Right after you compute frequencies, codes, encoded_message, and sizes, insert:
+
+```python
+# Compute probabilities, average code length L, entropy H, and efficiency H/L
+n = len(message)
+probs = {ch: freq / n for ch, freq in frequencies.items()} if n > 0 else {}
+avg_len = sum(probs[ch] * len(codes[ch]) for ch in probs) if n > 0 else 0.0
+entropy = -sum(p * math.log2(p) for p in probs.values()) if n > 0 else 0.0
+efficiency = (entropy / avg_len) if avg_len > 0 else None
+
+def _huffman_decompress(bitstring: str, codes: Dict[str, str]) -> str:
+    inv = {code: ch for ch, code in codes.items()}
+    out, acc = [], ""
+    for b in bitstring:
+        acc += b
+        if acc in inv:
+            out.append(inv[acc])
+            acc = ""
+    return "".join(out)
+
+decoded_try = _huffman_decompress(encoded_message, codes) if message else ""
+```
+
+Then extend the return dict (keep existing fields) with:
+
+```python
+"statistics": {
+    "original_size_bits": original_size,
+    "compressed_size_bits": compressed_size,
+    "ratio": ratio,
+    "avg_code_length_L": round(avg_len, 4),
+    "entropy_H_bits": round(entropy, 4),
+    "coding_efficiency_H_over_L": (round(efficiency, 4) if efficiency is not None else "N/A"),
+},
+"roundtrip_check": {
+    "decoded_message": decoded_try,
+    "valid": (decoded_try == message),
+},
+```
+
+2) HAMMING (7,4): return decoded bitstream and decoded text after correction
+
+Locate function: def _hamming_process(message: str) -> Dict[str, object]
+
+After you build `decoded_bits` for all 7‑bit blocks (each block → 4 data bits), add:
+
+```python
+decoded_bitstream = "".join(decoded_bits)
+
+# Group into bytes, convert to bytes, then UTF‑8 string
+byte_chunks = [decoded_bitstream[i:i+8] for i in range(0, len(decoded_bitstream), 8)]
+decoded_bytes = bytes(int(b, 2) for b in byte_chunks if len(b) == 8)
+decoded_text = decoded_bytes.decode("utf-8", errors="replace") if decoded_bytes else ""
+```
+
+Then augment the "processed_data" part of the return value (keep existing entries):
+
+```python
+"processed_data": {
+    "encoded_hamming_stream": encoded_stream,
+    "stream_with_error": stream_with_error,
+    "decoded_bitstream_after_correction": decoded_bitstream,
+    "decoded_text_after_correction": decoded_text,
+},
+```
+
+(Optionally you may add a deterministic seed at the top of the function for reproducible flips: e.g., random.seed(42). Not required.)
+
+3) VIGENÈRE: accept and use a configurable key
+
+A) In process() (POST /process) retrieve the key and pass it to the Vigenère handler:
+
+```python
+data = request.get_json(silent=True) or {}
+message = data.get("message", "")
+mode = data.get("mode", "")
+key = data.get("key")  # NEW
+
+if mode == "compress":
+    response = _huffman_compress(message)
+elif mode == "hamming":
+    response = _hamming_process(message)
+else:
+    response = _vigenere_process(message, key)  # pass key
+```
+
+B) Change the Vigenère helper signature and use the provided key (default if missing):
+
+```python
+from typing import Optional  # ensure imported
+
+def _vigenere_process(message: str, key: Optional[str] = None) -> Dict[str, object]:
+    key = (key or "KALASHNIKOV").strip()
+    encrypted = _vigenere_encrypt(message, key)
+    decrypted = _vigenere_decrypt(encrypted, key)
+    return {
+        "mode": "Encryption (Vigenère Cipher)",
+        "original_message": message,
+        "processed_data": {
+            "encrypted_message": encrypted,
+        },
+        "details": {
+            "key": key,
+            "note": "This can be decrypted using the same key.",
+            "decrypted_check": decrypted,
+        },
+    }
+```
+
+──────────────────────────────────────────────────────────────────────────────
+CHANGES IN index.html
+──────────────────────────────────────────────────────────────────────────────
+
+1) Add a “Key” input for Vigenère (hidden unless encrypt mode selected)
+
+Place this new group below the message textarea (IDs must match JS below):
+
+```html
+<div class="form-group" id="key-group" style="display:none">
+  <label for="key">Ключ (Vigenère)</label>
+  <input id="key" type="text" placeholder="Например: KALASHNIKOV" />
+</div>
+```
+
+2) Toggle the key field visibility when the mode changes
+
+In your <script> (after getSelectedMode()), add:
+
+```js
+function updateKeyVisibility() {
+  const mode = getSelectedMode();
+  document.getElementById("key-group").style.display =
+    mode === "encrypt" ? "" : "none";
+}
+
+document.querySelectorAll('input[name="mode"]').forEach(r => {
+  r.addEventListener('change', updateKeyVisibility);
+});
+// initialize on load
+updateKeyVisibility();
+```
+
+3) Send the key only for encrypt mode
+
+In sendToServer() before building fetch payload:
+
+```js
+const mode = getSelectedMode();
+const payload = { message: messageField.value, mode };
+if (mode === "encrypt") {
+  payload.key = document.getElementById("key").value || "KALASHNIKOV";
+}
+```
+
+Leave SERVER_URL and other logic as is.
+
+──────────────────────────────────────────────────────────────────────────────
+MANUAL TEST PLAN
+──────────────────────────────────────────────────────────────────────────────
+
+1) Huffman
+- Message: "BANANA BANANA"
+- Select “Сжатие (Huffman)” and Send.
+- Expect JSON fields:
+  - statistics.avg_code_length_L, statistics.entropy_H_bits, statistics.coding_efficiency_H_over_L
+  - roundtrip_check.valid == true and decoded_message equals original
+
+2) Hamming (7,4)
+- Message: "Hello, мир!"
+- Select “Помехоустойчивость (Hamming)” and Send.
+- Expect processed_data.decoded_text_after_correction to match original (single-bit flip corrected).
+- Check logs for syndrome in details and “correction” note.
+
+3) Vigenère
+- Message: "Attack at dawn! Вперёд!"
+- Mode: “Шифрование (Vigenère)”, Key: "LEMON"
+- Expect encrypted_message to differ when key changes; details.decrypted_check equals original.
+
+Edge cases:
+- Empty message → no crash; ratio may be "N/A"; texts may be empty strings; UTF‑8 decoding uses errors="replace".
+
+Done when all acceptance criteria pass and no existing fields are removed from the API responses.

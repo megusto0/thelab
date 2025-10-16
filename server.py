@@ -101,6 +101,26 @@ def _huffman_compress(message: str) -> Dict[str, object]:
     original_size = len(message.encode("utf-8")) * 8
     compressed_size = len(encoded_message)
 
+    # Compute probabilities, average code length L, entropy H, and efficiency H/L
+    n = len(message)
+    probs = {ch: freq / n for ch, freq in frequencies.items()} if n > 0 else {}
+    avg_len = sum(probs[ch] * len(codes[ch]) for ch in probs) if n > 0 else 0.0
+    entropy = -sum(p * math.log2(p) for p in probs.values()) if n > 0 else 0.0
+    efficiency = (entropy / avg_len) if avg_len > 0 else None
+
+    def _huffman_decompress(bitstring: str, table: Dict[str, str]) -> str:
+        inv = {code: ch for ch, code in table.items()}
+        out: List[str] = []
+        acc = ""
+        for bit in bitstring:
+            acc += bit
+            if acc in inv:
+                out.append(inv[acc])
+                acc = ""
+        return "".join(out)
+
+    decoded_try = _huffman_decompress(encoded_message, codes) if message else ""
+
     ratio = "N/A"
     if original_size > 0:
         ratio_value = (compressed_size / original_size) * 100 if original_size else math.nan
@@ -120,6 +140,13 @@ def _huffman_compress(message: str) -> Dict[str, object]:
             "original_size_bits": original_size,
             "compressed_size_bits": compressed_size,
             "ratio": ratio,
+            "avg_code_length_L": round(avg_len, 4),
+            "entropy_H_bits": round(entropy, 4),
+            "coding_efficiency_H_over_L": (round(efficiency, 4) if efficiency is not None else "N/A"),
+        },
+        "roundtrip_check": {
+            "decoded_message": decoded_try,
+            "valid": decoded_try == message,
         },
     }
 
@@ -232,6 +259,11 @@ def _hamming_process(message: str) -> Dict[str, object]:
         decoded_bits = []
 
     stream_with_error = "".join(stream_with_error_blocks)
+    decoded_bitstream = "".join(decoded_bits)
+    byte_chunks = [decoded_bitstream[i : i + 8] for i in range(0, len(decoded_bitstream), 8)]
+    decoded_bytes = bytes(int(chunk, 2) for chunk in byte_chunks if len(chunk) == 8)
+    decoded_text = decoded_bytes.decode("utf-8", errors="replace") if decoded_bytes else ""
+
     return {
         "mode": "Error Correction (Hamming)",
         "original_message": message,
@@ -239,6 +271,8 @@ def _hamming_process(message: str) -> Dict[str, object]:
         "processed_data": {
             "encoded_hamming_stream": encoded_stream,
             "stream_with_error": stream_with_error,
+            "decoded_bitstream_after_correction": decoded_bitstream,
+            "decoded_text_after_correction": decoded_text,
         },
         "demonstration_log": {
             "error_simulation": error_log,
@@ -291,8 +325,8 @@ def _vigenere_transform(message: str, key: str, *, decrypt: bool = False) -> str
     return "".join(transformed_chars)
 
 
-def _vigenere_process(message: str) -> Dict[str, object]:
-    key = "KALASHNIKOV"
+def _vigenere_process(message: str, key: Optional[str] = None) -> Dict[str, object]:
+    key = (key or "KALASHNIKOV").strip() or "KALASHNIKOV"
     encrypted = _vigenere_encrypt(message, key)
     decrypted = _vigenere_decrypt(encrypted, key)
     return {
@@ -319,6 +353,7 @@ def process():
     data = request.get_json(silent=True) or {}
     message = data.get("message", "")
     mode = data.get("mode", "")
+    key = data.get("key")
 
     if mode not in {"compress", "hamming", "encrypt"}:
         return jsonify({"error": "Invalid mode. Choose from 'compress', 'hamming', or 'encrypt'."}), 400
@@ -331,7 +366,7 @@ def process():
     elif mode == "hamming":
         response = _hamming_process(message)
     else:
-        response = _vigenere_process(message)
+        response = _vigenere_process(message, key)
 
     return jsonify(response)
 
