@@ -377,6 +377,12 @@ def index():
     return send_from_directory(app.root_path, "index.html")
 
 
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    # Silence browser favicon requests; no icon bundled.
+    return ("", 204)
+
+
 def main() -> None:
     app.run(host="0.0.0.0", port=5000, debug=False)
 
