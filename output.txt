@@ -1,0 +1,744 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Лабораторные работы по СПИВТ</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        background-color: #f3f4f6;
+        color: #1f2933;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        width: min(960px, 100vw);
+        padding: 1.5rem;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        margin-bottom: 1rem;
+        text-align: center;
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group {
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      label {
+        font-weight: 600;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #d0d7de;
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+
+      .modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .mode-option {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        background: #eef2ff;
+      }
+
+      button {
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(29, 78, 216, 0.22);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .result-card {
+        border-left: 4px solid #2563eb;
+      }
+
+      .result-card h2 {
+        margin-top: 0;
+        font-size: 1.4rem;
+      }
+
+      .result-content {
+        background: #111827;
+        color: #f9fafb;
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      #huffman-viz {
+        display: none;
+      }
+
+      .viz-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      .viz-panel {
+        background: #f5f5f5;
+        border-radius: 10px;
+        padding: 1rem;
+        color: #111;
+      }
+
+      .viz-panel h3 {
+        margin-top: 0;
+        font-size: 1.1rem;
+      }
+
+      .merge-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+        font-size: 0.9rem;
+      }
+
+      .merge-table th,
+      .merge-table td {
+        border: 1px solid #d1d5db;
+        padding: 0.4rem 0.5rem;
+        text-align: left;
+      }
+
+      .merge-table th {
+        background: #e5e7eb;
+      }
+
+      .ascii-tree {
+        background: #fdfdfd;
+        border: 1px dashed #9ca3af;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+        font-size: 0.85rem;
+        white-space: pre;
+        overflow-x: auto;
+      }
+
+      svg.huffman-tree {
+        width: 100%;
+        height: 520px;
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+      }
+
+      .edge-label {
+        font-size: 0.75rem;
+        fill: #111;
+        background: #fff;
+      }
+
+      @media (max-width: 1024px) {
+        .viz-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .note {
+        font-size: 0.9rem;
+        color: #4b5563;
+      }
+
+      @media (max-width: 640px) {
+        .card {
+          padding: 1.25rem;
+        }
+
+        .modes {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <h1>Лабораторные работы по СПИВТ</h1>
+        <div class="form-group">
+          <label for="message">Введите сообщение для обработки</label>
+          <textarea
+            id="message"
+            placeholder="Например: тестовое сообщение для демонстрации алгоритмов..."
+          ></textarea>
+        </div>
+        <div class="form-group" id="key-group" style="display: none">
+          <label for="key">Ключ (Vigenère)</label>
+          <input id="key" type="text" placeholder="Например: KALASHNIKOV" />
+        </div>
+        <div class="form-group">
+          <label>Выберите режим обработки</label>
+          <div class="modes" role="radiogroup">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="compress" checked />
+              Сжатие (Huffman)
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="hamming" />
+              Помехоустойчивость (Hamming)
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="encrypt" />
+              Шифрование (Vigenère)
+            </label>
+          </div>
+        </div>
+        <p class="note">
+          Убедитесь, что Flask-сервер запущен и доступен по адресу
+          <code>http://&lt;ваш_сервер&gt;:5000/</code>. Откройте эту страницу через Flask, чтобы
+          запросы выполнялись автоматически.
+        </p>
+        <button id="sendBtn" type="button">Отправить на сервер</button>
+      </section>
+
+      <section class="card result-card">
+        <h2>Результат обработки на сервере</h2>
+        <div id="status" class="note">Ответ сервера появится здесь после отправки.</div>
+        <pre id="result" class="result-content">{}</pre>
+      </section>
+
+      <section id="huffman-viz" class="card">
+        <h2>Дерево Хаффмена (дерево обезьян)</h2>
+        <p class="note">лево=0, право=1; листья: символ:частота; внутренние узлы: (сумма); пробел отображать как ␠</p>
+        <div class="viz-grid">
+          <div class="viz-panel">
+            <svg id="huffman-svg" class="huffman-tree" viewBox="0 0 1000 540"></svg>
+          </div>
+          <div class="viz-panel">
+            <div>
+              <h3>Этапы склеивания</h3>
+              <table class="merge-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Левый узел</th>
+                    <th>Правый узел</th>
+                    <th>Сумма</th>
+                  </tr>
+                </thead>
+                <tbody id="merge-steps-body"></tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4" id="merge-total">Итоговый вес (корень): 0</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div style="margin-top: 1rem">
+              <h3>ASCII-представление дерева</h3>
+              <div id="ascii-tree" class="ascii-tree"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const SERVER_URL = "/process";
+
+      const messageField = document.getElementById("message");
+      const sendButton = document.getElementById("sendBtn");
+      const statusField = document.getElementById("status");
+      const resultField = document.getElementById("result");
+      const keyGroup = document.getElementById("key-group");
+      const keyField = document.getElementById("key");
+      const huffmanVizSection = document.getElementById("huffman-viz");
+      const mergeStepsBody = document.getElementById("merge-steps-body");
+      const mergeTotalCell = document.getElementById("merge-total");
+      const asciiTreeBlock = document.getElementById("ascii-tree");
+      const huffmanSvg = document.getElementById("huffman-svg");
+
+      function getSelectedMode() {
+        const selected = document.querySelector('input[name="mode"]:checked');
+        return selected ? selected.value : "compress";
+      }
+
+      function setLoadingState(isLoading) {
+        sendButton.disabled = isLoading;
+        statusField.textContent = isLoading
+          ? "Отправляем данные на сервер..."
+          : "Ответ сервера появится здесь после отправки.";
+      }
+
+      function updateKeyVisibility() {
+        const mode = getSelectedMode();
+        keyGroup.style.display = mode === "encrypt" ? "" : "none";
+      }
+
+      document.querySelectorAll('input[name="mode"]').forEach((radio) => {
+        radio.addEventListener("change", updateKeyVisibility);
+      });
+      updateKeyVisibility();
+
+      async function sendToServer() {
+        const rawMessage = messageField.value;
+        const message = rawMessage.trim();
+        const mode = getSelectedMode();
+
+        if (!message) {
+          statusField.textContent = "Пожалуйста, введите сообщение перед отправкой.";
+          resultField.textContent = "{}";
+          return;
+        }
+
+        try {
+          setLoadingState(true);
+          const payload = { message: rawMessage, mode };
+          if (mode === "encrypt") {
+            const keyValue = keyField.value.trim();
+            payload.key = keyValue || "KALASHNIKOV";
+          }
+          const response = await fetch(SERVER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Не удалось получить корректный ответ сервера.");
+          }
+
+          statusField.textContent = "Обработка выполнена успешно.";
+          resultField.textContent = JSON.stringify(data, null, 2);
+          updateHuffmanVisualization(data);
+        } catch (error) {
+          statusField.textContent = `Ошибка: ${error.message}`;
+          resultField.textContent = "{}";
+          updateHuffmanVisualization(null);
+        } finally {
+          setLoadingState(false);
+        }
+      }
+
+      sendButton.addEventListener("click", sendToServer);
+
+      function updateHuffmanVisualization(data) {
+        if (!data || data.mode !== "Compression (Huffman)") {
+          huffmanVizSection.style.display = "none";
+          mergeStepsBody.innerHTML = "";
+          mergeTotalCell.textContent = "Итоговый вес (корень): 0";
+          asciiTreeBlock.textContent = "";
+          huffmanSvg.innerHTML = "";
+          return;
+        }
+
+        huffmanVizSection.style.display = "";
+        const freqMap = data.analysis?.char_frequencies || {};
+        const codes = data.analysis?.huffman_codes || null;
+
+        const treeData = buildHuffmanTree(freqMap, codes);
+        const steps = treeData.mergeSteps;
+        renderMergeTable(steps, treeData.rootWeight);
+        renderAsciiTree(treeData.root, asciiTreeBlock);
+        renderHuffmanSvg(treeData.root, huffmanSvg);
+      }
+
+      function buildHuffmanTree(freqMap, codes) {
+        const escapeLabel = (char) => (char === " " ? "␠" : char);
+        const { root: algoRoot, steps: mergeSteps } = buildHuffmanWithSteps(freqMap, escapeLabel);
+
+        let root = algoRoot;
+        if (codes && Object.keys(codes).length > 0) {
+          const reconstructedRoot = createNode(null, 0, false);
+          for (const [char, code] of Object.entries(codes)) {
+            let cursor = reconstructedRoot;
+            for (const bit of code) {
+              if (bit === "0") {
+                cursor.left = cursor.left || createNode(null, 0, false);
+                cursor = cursor.left;
+              } else {
+                cursor.right = cursor.right || createNode(null, 0, false);
+                cursor = cursor.right;
+              }
+            }
+            cursor.char = char;
+            const weight = Number(freqMap[char]) || 0;
+            cursor.weight = weight;
+            cursor.label = `${escapeLabel(char)}:${weight}`;
+            cursor.isLeaf = true;
+          }
+          computeWeights(reconstructedRoot);
+          root = reconstructedRoot;
+        }
+
+        const rootWeight = root ? root.weight : 0;
+        return { root, mergeSteps, rootWeight };
+      }
+
+      function createNode(char, weight, isLeaf) {
+        return {
+          char,
+          weight,
+          left: null,
+          right: null,
+          label: isLeaf && char != null ? char : (weight ? `(${weight})` : ""),
+          isLeaf,
+        };
+      }
+
+      function computeWeights(node) {
+        if (!node) return 0;
+        if (node.isLeaf) {
+          return node.weight || 0;
+        }
+        const leftWeight = computeWeights(node.left);
+        const rightWeight = computeWeights(node.right);
+        node.weight = leftWeight + rightWeight;
+        node.label = `(${node.weight})`;
+        return node.weight;
+      }
+
+      function buildHuffmanWithSteps(freqMap, escapeLabel) {
+        const entries = Object.entries(freqMap || {});
+        if (entries.length === 0) {
+          return { root: null, steps: [] };
+        }
+
+        const sortedEntries = entries.sort((a, b) => escapeLabel(a[0]).localeCompare(escapeLabel(b[0])));
+        const steps = [];
+        let idCounter = 0;
+
+        const queue = sortedEntries.map(([char, weight]) => {
+          const numericWeight = Number(weight) || 0;
+          return {
+            char,
+            weight: numericWeight,
+            left: null,
+            right: null,
+            label: `${escapeLabel(char)}:${numericWeight}`,
+            isLeaf: true,
+            id: idCounter++,
+          };
+        });
+
+        queue.sort(compareHuffmanNodes);
+
+        if (queue.length === 1) {
+          return { root: queue[0], steps };
+        }
+
+        while (queue.length > 1) {
+          const left = queue.shift();
+          const right = queue.shift();
+          const parentWeight = (left.weight || 0) + (right.weight || 0);
+          const parent = {
+            char: null,
+            weight: parentWeight,
+            left,
+            right,
+            label: `(${parentWeight})`,
+            isLeaf: false,
+            id: idCounter++,
+          };
+          steps.push({
+            left: { label: left.label, weight: left.weight },
+            right: { label: right.label, weight: right.weight },
+            sum: parentWeight,
+          });
+          queue.push(parent);
+          queue.sort(compareHuffmanNodes);
+        }
+
+        return { root: queue[0] || null, steps };
+      }
+
+      function compareHuffmanNodes(a, b) {
+        if (a.weight !== b.weight) return a.weight - b.weight;
+        if (a.isLeaf !== b.isLeaf) return a.isLeaf ? -1 : 1;
+        const aLabel = a.label || "";
+        const bLabel = b.label || "";
+        if (aLabel !== bLabel) return aLabel < bLabel ? -1 : 1;
+        return (a.id || 0) - (b.id || 0);
+      }
+
+      function traverse(node, parent, depth, list) {
+        if (!node) return;
+        list.push({ node, parent, depth });
+        traverse(node.left, node, depth + 1, list);
+        traverse(node.right, node, depth + 1, list);
+      }
+
+      function renderMergeTable(steps, rootWeight) {
+        mergeStepsBody.innerHTML = "";
+        steps.forEach((step, index) => {
+          const row = document.createElement("tr");
+          const cells = [
+            index + 1,
+            `${step.left.label}`,
+            `${step.right.label}`,
+            `(${step.sum})`,
+          ];
+          cells.forEach((value) => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            row.appendChild(td);
+          });
+          mergeStepsBody.appendChild(row);
+        });
+        mergeTotalCell.textContent = `Итоговый вес (корень): ${rootWeight}`;
+      }
+
+      function renderAsciiTree(root, container) {
+        if (!root) {
+          container.textContent = "Нет данных для визуализации.";
+          return;
+        }
+
+        const lines = [];
+        const walk = (node, prefix, edgeLabel, isLast) => {
+          if (!node) return;
+          const connector = edgeLabel == null ? "" : `${isLast ? "└" : "├"}─${edgeLabel}─ `;
+          lines.push(`${prefix}${connector}${node.label}`);
+
+          const children = [];
+          if (node.left) {
+            children.push({ node: node.left, edge: "0" });
+          }
+          if (node.right) {
+            children.push({ node: node.right, edge: "1" });
+          }
+
+          const childPrefix =
+            edgeLabel == null
+              ? ""
+              : prefix + (isLast ? "    " : "│   ");
+
+          children.forEach((child, idx) => {
+            walk(child.node, childPrefix, child.edge, idx === children.length - 1);
+          });
+        };
+
+        walk(root, "", null, true);
+        container.textContent = lines.join("\n");
+      }
+
+      function renderHuffmanSvg(root, svg) {
+        svg.innerHTML = "";
+        if (!root) return;
+
+        const nodeSize = { width: 120, height: 40 };
+        const levelGap = 90;
+        const startY = 50;
+
+        const positions = new Map();
+        const leafGap = 110;
+        let leafIndex = 0;
+
+        const assignPositions = (node, depth) => {
+          if (!node) {
+            return { min: 0, max: 0, center: 0 };
+          }
+          const y = startY + depth * levelGap;
+          let x;
+
+          const hasChildren = !!(node.left || node.right);
+          if (!hasChildren) {
+            x = leafIndex * leafGap;
+            leafIndex += 1;
+            positions.set(node, { x, y });
+            return { min: x, max: x, center: x };
+          }
+
+          const leftSpan = node.left ? assignPositions(node.left, depth + 1) : null;
+          const rightSpan = node.right ? assignPositions(node.right, depth + 1) : null;
+
+          if (leftSpan && rightSpan) {
+            x = (leftSpan.center + rightSpan.center) / 2;
+            const min = Math.min(leftSpan.min, rightSpan.min);
+            const max = Math.max(leftSpan.max, rightSpan.max);
+            positions.set(node, { x, y });
+            return { min, max, center: x };
+          }
+          if (leftSpan) {
+            x = leftSpan.center;
+            positions.set(node, { x, y });
+            return { min: leftSpan.min, max: leftSpan.max, center: x };
+          }
+          if (rightSpan) {
+            x = rightSpan.center;
+            positions.set(node, { x, y });
+            return { min: rightSpan.min, max: rightSpan.max, center: x };
+          }
+
+          x = leafIndex * leafGap;
+          leafIndex += 1;
+          positions.set(node, { x, y });
+          return { min: x, max: x, center: x };
+        };
+
+        assignPositions(root, 0);
+
+        const allPositions = Array.from(positions.values());
+        let minX = Math.min(...allPositions.map((p) => p.x));
+        let maxX = Math.max(...allPositions.map((p) => p.x));
+        if (!isFinite(minX) || !isFinite(maxX)) {
+          minX = 0;
+          maxX = 0;
+        }
+        const range = maxX - minX || 1;
+        const targetWidth = 900;
+        const scale = range > targetWidth ? targetWidth / range : 1;
+        const center = (minX + maxX) / 2;
+
+        positions.forEach((pos, node) => {
+          const newX = (pos.x - center) * scale + 500;
+          positions.set(node, { x: newX, y: pos.y });
+        });
+
+        const createLine = (x1, y1, x2, y2) => {
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", x1);
+          line.setAttribute("y1", y1);
+          line.setAttribute("x2", x2);
+          line.setAttribute("y2", y2);
+          line.setAttribute("stroke", "#111");
+          line.setAttribute("stroke-width", "1.5");
+          return line;
+        };
+
+        const createRect = (x, y, width, height, text) => {
+          const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", x - width / 2);
+          rect.setAttribute("y", y - height / 2);
+          rect.setAttribute("width", width);
+          rect.setAttribute("height", height);
+          rect.setAttribute("rx", 8);
+          rect.setAttribute("ry", 8);
+          rect.setAttribute("fill", "#f9fafb");
+          rect.setAttribute("stroke", "#111");
+          rect.setAttribute("stroke-width", "1.5");
+
+          const textElem = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textElem.setAttribute("x", x);
+          textElem.setAttribute("y", y + 4);
+          textElem.setAttribute("text-anchor", "middle");
+          textElem.setAttribute("font-size", "13");
+          textElem.setAttribute("font-family", "Fira Code, Consolas, monospace");
+          textElem.setAttribute("fill", "#111");
+          textElem.textContent = text;
+
+          group.appendChild(rect);
+          group.appendChild(textElem);
+          return group;
+        };
+
+        const createEdgeLabel = (x1, y1, x2, y2, label) => {
+          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          text.setAttribute("x", (x1 + x2) / 2);
+          text.setAttribute("y", (y1 + y2) / 2 - 6);
+          text.setAttribute("text-anchor", "middle");
+          text.setAttribute("font-size", "11");
+          text.setAttribute("font-family", "Fira Code, Consolas, monospace");
+          text.setAttribute("fill", "#111");
+          text.textContent = label;
+          return text;
+        };
+
+        const edges = [];
+
+        const traverseSvg = (node) => {
+          if (!node) return;
+          const pos = positions.get(node);
+          if (node.left) {
+            const childPos = positions.get(node.left);
+            edges.push({
+              from: pos,
+              to: childPos,
+              label: "0",
+            });
+            traverseSvg(node.left);
+          }
+          if (node.right) {
+            const childPos = positions.get(node.right);
+            edges.push({
+              from: pos,
+              to: childPos,
+              label: "1",
+            });
+            traverseSvg(node.right);
+          }
+        };
+
+        traverseSvg(root);
+
+        edges.forEach((edge) => {
+          const line = createLine(edge.from.x, edge.from.y + nodeSize.height / 2, edge.to.x, edge.to.y - nodeSize.height / 2);
+          svg.appendChild(line);
+          const label = createEdgeLabel(edge.from.x, edge.from.y + nodeSize.height / 2, edge.to.x, edge.to.y - nodeSize.height / 2, edge.label);
+          svg.appendChild(label);
+        });
+
+        positions.forEach((pos, node) => {
+          const text = node.isLeaf && node.char != null ? node.label : `(${node.weight})`;
+          const group = createRect(pos.x, pos.y, nodeSize.width, nodeSize.height, text);
+          svg.appendChild(group);
+        });
+      }
+    </script>
+  </body>
+</html>
